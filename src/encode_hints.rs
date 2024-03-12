@@ -185,6 +185,11 @@ pub enum EncodeHintType {
      * Will translate the numeric values received by the Telepen writer into the Telepen Alphanumeric form.
      */
     TELEPEN_AS_NUMERIC,
+
+    /**
+     * The size of a unit dot of a square 2D code (QR code, DataMatrix or Aztec).
+     */
+    DOT_SIZE,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -343,4 +348,9 @@ pub enum EncodeHintValue {
      * Translate the numeric values received by the Telepen reader into the Telepen Alphaumeric form; use {@link Boolean#TRUE}.
      */
     TelepenAsNumeric(bool),
+
+    /**
+     * The size of a unit dot of a square 2D code (QR code, DataMatrix or Aztec) in pixels.
+     */
+    DotSizePixels(u32),
 }

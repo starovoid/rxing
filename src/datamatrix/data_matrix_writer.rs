@@ -78,6 +78,7 @@ impl Writer for DataMatrixWriter {
         let mut shape = &SymbolShapeHint::FORCE_NONE;
         let mut minSize = None;
         let mut maxSize = None;
+        let mut dotsize = None;
         if !hints.is_empty() {
             if let Some(EncodeHintValue::DataMatrixShape(rq)) =
                 hints.get(&EncodeHintType::DATA_MATRIX_SHAPE)
@@ -93,6 +94,11 @@ impl Writer for DataMatrixWriter {
             let requestedMaxSize = hints.get(&EncodeHintType::MAX_SIZE);
             if let Some(EncodeHintValue::MinSize(rq)) = requestedMaxSize {
                 maxSize = Some(*rq);
+            }
+
+            let requestedDotSize = hints.get(&EncodeHintType::DOT_SIZE);
+            if let Some(EncodeHintValue::DotSizePixels(size)) = requestedDotSize {
+                dotsize = Some(*size);
             }
         }
 
@@ -178,7 +184,7 @@ impl Writer for DataMatrixWriter {
         placement.place()?;
 
         //4. step: low-level encoding
-        Self::encodeLowLevel(&placement, symbolInfo, width as u32, height as u32)
+        Self::encodeLowLevel(&placement, symbolInfo, width as u32, height as u32, dotsize)
     }
 }
 
@@ -195,6 +201,7 @@ impl DataMatrixWriter {
         symbolInfo: &SymbolInfo,
         width: u32,
         height: u32,
+        dotsize: Option<u32>,
     ) -> Result<BitMatrix> {
         let symbolWidth = symbolInfo.getSymbolDataWidth()?;
         let symbolHeight = symbolInfo.getSymbolDataHeight()?;
@@ -246,7 +253,7 @@ impl DataMatrixWriter {
             }
         }
 
-        Self::convertByteMatrixToBitMatrix(&matrix, width, height)
+        Self::convertByteMatrixToBitMatrix(&matrix, width, height, dotsize)
     }
 
     /**
@@ -254,6 +261,8 @@ impl DataMatrixWriter {
      *
      * @param reqHeight The requested height of the image (in pixels) with the Datamatrix code
      * @param reqWidth The requested width of the image (in pixels) with the Datamatrix code
+     * @param dotsize The requested size of unit dot (in pixels). Using this parameter cancels
+     * reqWidth and reqHeight.
      * @param matrix The input matrix.
      * @return The output matrix.
      */
@@ -261,9 +270,16 @@ impl DataMatrixWriter {
         matrix: &ByteMatrix,
         reqWidth: u32,
         reqHeight: u32,
+        dotsize: Option<u32>,
     ) -> Result<BitMatrix> {
         let matrixWidth = matrix.getWidth();
         let matrixHeight = matrix.getHeight();
+
+        let (reqWidth, reqHeight) = match dotsize {
+            Some(m) => (matrixWidth * m, matrixHeight * m),
+            None => (reqWidth, reqHeight),
+        };
+
         let outputWidth = reqWidth.max(matrixWidth);
         let outputHeight = reqHeight.max(matrixHeight);
 
