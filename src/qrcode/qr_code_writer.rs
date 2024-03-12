@@ -92,9 +92,15 @@ impl Writer for QRCodeWriter {
                 QUIET_ZONE_SIZE
             };
 
+        let mut dotsize = None;
+        let requestedDotSize = hints.get(&EncodeHintType::DOT_SIZE);
+        if let Some(EncodeHintValue::DotSizePixels(size)) = requestedDotSize {
+            dotsize = Some(*size);
+        }
+
         let code = qrcode_encoder::encode_with_hints(contents, errorCorrectionLevel, hints)?;
 
-        Self::renderRXingResult(&code, width, height, quietZone)
+        Self::renderRXingResult(&code, width, height, quietZone, dotsize)
     }
 }
 
@@ -106,6 +112,7 @@ impl QRCodeWriter {
         width: i32,
         height: i32,
         quietZone: i32,
+        dotsize: Option<u32>,
     ) -> Result<BitMatrix> {
         let input = code.getMatrix();
         if input.is_none() {
@@ -114,8 +121,18 @@ impl QRCodeWriter {
 
         let input = input.as_ref().ok_or(Exceptions::ILLEGAL_STATE)?;
 
+        // dotsize is the size of the qr code module, accordingly, its use also proportionally
+        // increases the size of the quit zone.
         let inputWidth = input.getWidth() as i32;
         let inputHeight = input.getHeight() as i32;
+        let (width, height) = match dotsize {
+            Some(m) => (
+                (inputWidth + quietZone * 2) * m as i32,
+                (inputHeight + quietZone * 2) * m as i32,
+            ),
+            None => (width, height),
+        };
+
         let qrWidth = inputWidth + (quietZone * 2);
         let qrHeight = inputHeight + (quietZone * 2);
         let outputWidth = width.max(qrWidth);
