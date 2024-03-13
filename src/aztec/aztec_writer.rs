@@ -52,6 +52,7 @@ impl Writer for AztecWriter {
         let mut charset = None; // Do not add any ECI code by default
         let mut ecc_percent = aztec_encoder::DEFAULT_EC_PERCENT;
         let mut layers = aztec_encoder::DEFAULT_AZTEC_LAYERS;
+        let mut dotsize = None;
         if let Some(EncodeHintValue::CharacterSet(cset_name)) =
             hints.get(&EncodeHintType::CHARACTER_SET)
         {
@@ -69,6 +70,9 @@ impl Writer for AztecWriter {
         {
             layers = *az_layers;
         }
+        if let Some(EncodeHintValue::DotSizePixels(size)) = hints.get(&EncodeHintType::DOT_SIZE) {
+            dotsize = Some(*size);
+        }
         encode(
             contents,
             *format,
@@ -77,6 +81,7 @@ impl Writer for AztecWriter {
             charset,
             ecc_percent,
             layers,
+            dotsize,
         )
     }
 }
@@ -89,6 +94,7 @@ fn encode(
     charset: Option<CharacterSet>,
     ecc_percent: u32,
     layers: i32,
+    dotsize: Option<u32>,
 ) -> Result<BitMatrix> {
     if format != BarcodeFormat::AZTEC {
         return Err(Exceptions::illegal_argument_with(format!(
@@ -101,14 +107,28 @@ fn encode(
     } else {
         aztec_encoder::encode(contents, ecc_percent, layers)?
     };
-    renderRXingResult(&aztec, width, height)
+    renderRXingResult(&aztec, width, height, dotsize)
 }
 
-fn renderRXingResult(code: &AztecCode, width: u32, height: u32) -> Result<BitMatrix> {
+fn renderRXingResult(
+    code: &AztecCode,
+    width: u32,
+    height: u32,
+    dotsize: Option<u32>,
+) -> Result<BitMatrix> {
     let input = code.getMatrix();
 
     let input_width = input.getWidth();
     let input_height = input.getHeight();
+
+    // The "dotsize" parameter sets the size of the barcode element, instead of the preferred size
+    // of the barcode itself.
+    // The paddings will be zero when the "dotsize" parameter is set.
+    let (width, height) = match dotsize {
+        Some(m) => (input_width * m, input_height * m),
+        None => (width, height),
+    };
+
     let output_width = width.max(input_width);
     let output_height = height.max(input_height);
 
