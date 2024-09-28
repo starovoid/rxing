@@ -70,4 +70,8 @@ impl BarcodeRow {
 
         output
     }
+
+    pub fn len(&self) -> usize {
+        self.row.len()
+    }
 }

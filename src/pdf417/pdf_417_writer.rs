@@ -132,6 +132,90 @@ impl Writer for PDF417Writer {
 }
 
 impl PDF417Writer {
+    /// Encode with hints focusing on height and width.
+    pub fn encode_sized_with_hints(
+        &self,
+        contents: &str,
+        format: &crate::BarcodeFormat,
+        width: i32,
+        height: i32,
+        hints: &crate::EncodingHintDictionary,
+    ) -> Result<crate::common::BitMatrix> {
+        if format != &BarcodeFormat::PDF_417 {
+            return Err(Exceptions::illegal_argument_with(format!(
+                "Can only encode PDF_417, but got {format}"
+            )));
+        }
+
+        let mut encoder = PDF417::new();
+        let mut margin = WHITE_SPACE;
+        let mut errorCorrectionLevel = DEFAULT_ERROR_CORRECTION_LEVEL;
+        let mut autoECI = false;
+
+        if !hints.is_empty() {
+            if let Some(EncodeHintValue::Pdf417Compact(compact)) =
+                hints.get(&EncodeHintType::PDF417_COMPACT)
+            {
+                if let Ok(res) = compact.parse::<bool>() {
+                    encoder.setCompact(res);
+                }
+            }
+            if let Some(EncodeHintValue::Pdf417Compaction(compaction)) =
+                hints.get(&EncodeHintType::PDF417_COMPACTION)
+            {
+                encoder.setCompaction(compaction.try_into()?);
+            }
+            if let Some(EncodeHintValue::Pdf417Dimensions(dimensions)) =
+                hints.get(&EncodeHintType::PDF417_DIMENSIONS)
+            {
+                encoder.setDimensions(
+                    dimensions.getMaxCols() as u32,
+                    dimensions.getMinCols() as u32,
+                    dimensions.getMaxRows() as u32,
+                    dimensions.getMinRows() as u32,
+                );
+            }
+            if let Some(EncodeHintValue::Margin(m1)) = hints.get(&EncodeHintType::MARGIN) {
+                if let Ok(m) = m1.parse::<u32>() {
+                    margin = m;
+                }
+            }
+            if let Some(EncodeHintValue::ErrorCorrection(ec)) =
+                hints.get(&EncodeHintType::ERROR_CORRECTION)
+            {
+                if let Ok(ec_parsed) = ec.parse::<u32>() {
+                    errorCorrectionLevel = ec_parsed;
+                }
+            }
+            if let Some(EncodeHintValue::CharacterSet(cs)) =
+                hints.get(&EncodeHintType::CHARACTER_SET)
+            {
+                encoder.setEncoding(CharacterSet::get_character_set_by_name(cs));
+            }
+            if let Some(EncodeHintValue::Pdf417AutoEci(auto_eci_str)) =
+                hints.get(&EncodeHintType::PDF417_AUTO_ECI)
+            {
+                if let Ok(auto_eci_parsed) = auto_eci_str.parse::<bool>() {
+                    autoECI = auto_eci_parsed;
+                }
+            }
+        }
+
+        encoder.generateBarcodeLogicWithAutoECI(contents, errorCorrectionLevel, autoECI)?;
+
+        let logicalMatrix = encoder
+            .getBarcodeMatrix()
+            .as_ref()
+            .ok_or(Exceptions::ILLEGAL_STATE)?;
+
+        let scaleX = (width as f64) / (logicalMatrix.getWidth() as f64);
+        let scaleY = (height as f64) / (logicalMatrix.getHeight() as f64);
+
+        let originalScale = logicalMatrix.getScaledMatrix(scaleX.round() as usize, scaleY as usize);
+
+        Self::bitMatrixFromBitArray(&originalScale, margin).ok_or(Exceptions::ILLEGAL_STATE)
+    }
+
     /**
      * Takes encoder, accounts for width/height, and retrieves bit matrix
      */

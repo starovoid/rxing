@@ -22,10 +22,10 @@ use super::BarcodeRow;
  * @author Jacob Haynes
  */
 pub struct BarcodeMatrix {
-    matrix: Vec<BarcodeRow>,
-    currentRow: isize,
-    height: usize,
-    width: usize,
+    pub matrix: Vec<BarcodeRow>,
+    pub currentRow: isize,
+    pub height: usize,
+    pub width: usize,
 }
 impl BarcodeMatrix {
     /**
@@ -80,5 +80,13 @@ impl BarcodeMatrix {
         }
 
         matrixOut
+    }
+
+    pub fn getHeight(&self) -> usize {
+        self.matrix.len()
+    }
+
+    pub fn getWidth(&self) -> usize {
+        self.matrix[0].len()
     }
 }
